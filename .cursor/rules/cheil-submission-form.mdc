@@ -1,0 +1,573 @@
+---
+alwaysApply: true
+---
+## Code Standards
+
+### General Rules
+- Use **ES6+ syntax** (async/await, arrow functions, destructuring)
+- Follow **consistent naming conventions**:
+  - Variables/Functions: camelCase
+  - Components: PascalCase
+  - Constants: UPPER_SNAKE_CASE
+  - Files: kebab-case or PascalCase (for components)
+- Write **clear, descriptive variable names** (avoid abbreviations)
+- Add **comments for complex logic** only (code should be self-documenting)
+- Use **TypeScript interfaces/types** for data structures
+
+### Error Handling
+- Always use try-catch blocks for async operations
+- Return consistent error response format:
+```json
+{
+  "success": false,
+  "message": "Error description",
+  "errors": []
+}
+```
+- Never expose sensitive error details to frontend
+- Log all errors server-side with proper context
+
+---
+
+## Frontend Guidelines
+
+### Project Structure
+```
+frontend/
+├── src/
+│   ├── components/
+│   │   ├── SubmissionForm.tsx
+│   │   ├── ImageUpload.tsx
+│   │   └── common/
+│   ├── services/
+│   │   └── api.ts
+│   ├── hooks/
+│   │   └── useSubmission.ts
+│   ├── types/
+│   │   └── submission.types.ts
+│   ├── utils/
+│   │   └── validation.ts
+│   ├── App.tsx
+│   └── main.tsx
+├── public/
+├── package.json
+├── tsconfig.json
+└── vite.config.ts
+```
+
+### Component Guidelines
+- Use **functional components** with hooks
+- Implement **proper TypeScript typing** for props
+- Use **custom hooks** for reusable logic
+- Keep components **small and focused** (single responsibility)
+- Implement **loading states** and **error boundaries**
+
+### Form Validation
+- Validate on client-side before submission:
+  - Name: Required, 2-100 characters
+  - Email: Required, valid email format
+  - Phone: Required, valid phone format (adjust by region)
+  - Image: Required, max 5MB, types: JPG, PNG, WEBP
+- Show clear error messages near each field
+- Disable submit button during validation/submission
+
+### Image Upload
+- Show image preview before upload
+- Display upload progress bar
+- Validate file size and type before submission
+- Handle upload errors gracefully
+- Allow image removal/replacement
+
+### API Communication
+- Use centralized API service/client
+- Implement request/response interceptors
+- Handle network errors and timeouts
+- Use environment variables for API endpoints
+- Implement retry logic for failed requests
+
+---
+
+## Backend Guidelines
+
+### Project Structure
+```
+backend/
+├── prisma/
+│   ├── schema.prisma
+│   └── migrations/
+├── src/
+│   ├── config/
+│   │   ├── database.js (Prisma Client instance)
+│   │   └── multer.js
+│   ├── controllers/
+│   │   └── submission.controller.js
+│   ├── routes/
+│   │   └── submission.routes.js
+│   ├── middleware/
+│   │   ├── validation.js
+│   │   ├── errorHandler.js
+│   │   └── upload.js
+│   ├── utils/
+│   │   └── helpers.js
+│   └── server.js
+├── uploads/ (gitignored)
+├── .env
+├── .env.example
+└── package.json
+```
+
+**Note**: With Prisma, the `models/` folder is not needed as schemas are defined in `prisma/schema.prisma`
+
+### API Endpoints
+
+#### POST /api/submissions
+Create a new submission with image upload
+
+**Request**: multipart/form-data
+- name (string, required)
+- email (string, required)
+- phone (string, required)
+- image (file, required)
+
+**Response**: 201 Created
+```json
+{
+  "success": true,
+  "message": "Submission created successfully",
+  "data": {
+    "id": "uuid",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "phone": "+1234567890",
+    "imageUrl": "/uploads/image-123.jpg",
+    "createdAt": "2025-10-29T..."
+  }
+}
+```
+
+#### GET /api/submissions
+Get all submissions (optional, for admin)
+
+**Response**: 200 OK
+```json
+{
+  "success": true,
+  "data": [],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 100
+  }
+}
+```
+
+#### GET /api/submissions/:id
+Get single submission by ID (optional)
+
+### Database Schema (PostgreSQL with Prisma)
+
+#### Prisma Schema (schema.prisma)
+```prisma
+model Submission {
+  id        String   @id @default(uuid())
+  name      String   @db.VarChar(100)
+  email     String   @unique
+  phone     String   @db.VarChar(20)
+  imageUrl  String
+  imageName String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([createdAt])
+  @@map("submissions")
+}
+```
+
+#### Database Table Structure
+- **id**: UUID (Primary Key)
+- **name**: VARCHAR(100), NOT NULL
+- **email**: VARCHAR(255), UNIQUE, NOT NULL
+- **phone**: VARCHAR(20), NOT NULL
+- **imageUrl**: TEXT, NOT NULL (path to uploaded file)
+- **imageName**: VARCHAR(255), NOT NULL (original filename)
+- **createdAt**: TIMESTAMP, DEFAULT NOW()
+- **updatedAt**: TIMESTAMP, AUTO UPDATE
+
+### Prisma Client Usage
+- Import PrismaClient in database config:
+```javascript
+// src/config/database.js
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+module.exports = prisma;
+```
+
+- Use Prisma in controllers:
+```javascript
+// Example: Create submission
+const submission = await prisma.submission.create({
+  data: {
+    name,
+    email,
+    phone,
+    imageUrl,
+    imageName
+  }
+});
+
+// Example: Find all submissions
+const submissions = await prisma.submission.findMany({
+  orderBy: { createdAt: 'desc' }
+});
+```
+
+### Validation & Sanitization
+- Use express-validator for all inputs
+- Sanitize user inputs to prevent XSS
+- Validate email format server-side
+- Validate phone number format
+- Check file type and size before processing
+- Limit request body size (10MB max)
+
+### File Upload
+- Use multer middleware for file handling
+- Generate unique filenames (timestamp + random string)
+- Store files in organized folder structure: `/uploads/YYYY/MM/`
+- Validate MIME types (image/jpeg, image/png, image/webp)
+- Resize/optimize images before saving (use sharp library)
+- Return public URL path in response
+
+### PostgreSQL & Prisma Best Practices
+- Use connection pooling (Prisma handles this automatically)
+- Handle database connection errors gracefully
+- Close Prisma connection on server shutdown:
+```javascript
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  await prisma.$disconnect();
+  process.exit(0);
+});
+```
+- Use transactions for complex operations
+- Implement proper indexing for frequently queried fields
+- Use Prisma migrations for database changes (never edit DB directly)
+- Always use `await` with Prisma queries
+- Prisma automatically prevents SQL injection (parameterized queries)
+
+### Security
+- Use **helmet** for security headers
+- Enable **CORS** with specific origins (not *)
+- Implement **rate limiting** (express-rate-limit)
+- Sanitize filenames to prevent path traversal
+- Prisma prevents SQL injection by default (use Prisma queries, avoid raw SQL)
+- Store sensitive configs in **.env** file
+- Never commit .env file (add to .gitignore)
+- Validate and sanitize all user inputs
+- Implement file upload size limits
+
+### Error Handling
+- Use centralized error handling middleware
+- Return appropriate HTTP status codes:
+  - 200: Success
+  - 201: Created
+  - 400: Bad Request (validation errors)
+  - 404: Not Found
+  - 413: Payload Too Large
+  - 500: Internal Server Error
+- Log errors with timestamps and context
+- Use winston or similar for logging
+
+---
+
+## Environment Variables
+
+### Frontend (.env)
+```
+VITE_API_URL=http://localhost:3000/api
+VITE_MAX_FILE_SIZE=5242880
+```
+
+### Backend (.env)
+```
+PORT=3000
+NODE_ENV=development
+
+# Database PostgreSQL
+DATABASE_URL=postgresql://user:password@localhost:5432/cheil_db
+
+# File Upload
+UPLOAD_DIR=./uploads
+MAX_FILE_SIZE=5242880
+
+# CORS
+CORS_ORIGIN=http://localhost:5173
+
+# AWS S3 (for production)
+AWS_ACCESS_KEY_ID=your_key
+AWS_SECRET_ACCESS_KEY=your_secret
+AWS_BUCKET_NAME=your_bucket
+AWS_REGION=us-east-1
+```
+
+---
+
+## Development Workflow
+
+### Setup Steps
+1. Clone repository
+2. Install dependencies:
+   - Frontend: `cd frontend && npm install`
+   - Backend: `cd backend && npm install`
+3. Setup database (create database, run migrations)
+4. Copy .env.example to .env and configure
+5. Start development servers:
+   - Backend: `npm run dev` (port 3000)
+   - Frontend: `npm run dev` (port 5173)
+
+### Git Workflow
+- Create feature branches: `feature/submission-form`
+- Write descriptive commit messages
+- Test before committing
+- Keep commits atomic and focused
+- Don't commit node_modules, uploads, or .env files
+
+### .gitignore (Backend)
+```
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+.env.local
+
+# Uploads
+uploads/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+```
+
+### Testing
+- Test form validation (empty, invalid, valid inputs)
+- Test file upload (size limits, file types)
+- Test error handling (network errors, validation errors)
+- Test responsive design (mobile, tablet, desktop)
+- Test image preview and removal
+- Verify database entries after submission
+
+---
+
+## UI/UX Guidelines
+
+### Form Design
+- Clean, modern, minimalist design
+- Clear labels for each field
+- Inline validation with error messages
+- Visible submit button with loading state
+- Success message/modal after submission
+- Mobile-responsive layout
+
+### User Feedback
+- Show loading spinner during submission
+- Display progress bar during image upload
+- Show success message with confirmation
+- Clear error messages for failures
+- Disable form during submission
+- Option to reset form after success
+
+### Accessibility
+- Use semantic HTML elements
+- Add proper ARIA labels
+- Ensure keyboard navigation works
+- Provide alt text for images
+- Use sufficient color contrast
+- Support screen readers
+
+---
+
+## Performance Optimization
+
+### Frontend
+- Lazy load components where appropriate
+- Optimize images before upload (client-side compression)
+- Use React.memo for expensive components
+- Implement debouncing for validation
+- Use proper code splitting
+
+### Backend
+- Index database fields (email, createdAt)
+- Optimize image processing (sharp library)
+- Use compression middleware (gzip)
+- Implement caching where appropriate
+- Use connection pooling for database
+
+---
+
+## Deployment Considerations
+
+### Frontend
+- Build optimized production bundle: `npm run build`
+- Deploy to: Vercel / Netlify / AWS S3 + CloudFront
+- Set production environment variables
+- Enable HTTPS
+
+### Backend
+- Use process manager (PM2) for Node.js
+- Deploy to: AWS EC2 / Heroku / DigitalOcean / Railway / Render
+- Setup reverse proxy (Nginx)
+- Enable HTTPS with SSL certificate
+- Setup automated backups for database
+- Use cloud storage (S3/Cloudinary) for images
+- Setup monitoring and logging
+- Configure CORS for production domain
+
+### PostgreSQL Database (Production)
+- Use managed PostgreSQL service:
+  - **AWS RDS** for PostgreSQL
+  - **Heroku Postgres**
+  - **DigitalOcean Managed Databases**
+  - **Railway PostgreSQL**
+  - **Supabase** (PostgreSQL with additional features)
+- Set up automated daily backups
+- Configure connection pooling limits
+- Use SSL connection for security
+- Set proper DATABASE_URL in production .env
+- Run Prisma migrations on deployment:
+```bash
+npx prisma migrate deploy
+```
+- Monitor database performance and queries
+- Set up read replicas for high traffic (optional)
+
+---
+
+## Best Practices Summary
+
+### DO
+✅ Use TypeScript for type safety
+✅ Validate inputs on both frontend and backend
+✅ Handle errors gracefully with user-friendly messages
+✅ Use environment variables for configuration
+✅ Implement proper file upload security measures
+✅ Write clean, readable, maintainable code
+✅ Test thoroughly before deployment
+✅ Use version control effectively
+✅ Document complex logic
+✅ Keep dependencies up to date
+
+### DON'T
+❌ Store sensitive data in frontend code
+❌ Trust client-side validation alone
+❌ Commit .env files or credentials
+❌ Use wildcard CORS in production
+❌ Store large files in database
+❌ Expose detailed error messages to users
+❌ Skip input sanitization
+❌ Hardcode configuration values
+❌ Ignore security best practices
+❌ Deploy without testing
+
+---
+
+## Quick Reference
+
+### Common Commands
+
+#### Frontend
+```bash
+npm create vite@latest frontend -- --template react-ts
+cd frontend
+npm install
+npm install axios react-hook-form zod
+npm run dev
+npm run build
+```
+
+#### Backend
+```bash
+mkdir backend && cd backend
+npm init -y
+
+# Install production dependencies
+npm install express cors helmet dotenv multer express-validator
+npm install @prisma/client sharp
+
+# Install dev dependencies
+npm install --save-dev nodemon prisma
+
+# Initialize Prisma
+npx prisma init
+
+# Start development server
+npm run dev
+```
+
+**Backend package.json scripts:**
+```json
+{
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio"
+  }
+}
+```
+
+#### Database Setup (PostgreSQL with Prisma)
+```bash
+# Install Prisma
+npm install prisma @prisma/client
+npm install --save-dev prisma
+
+# Initialize Prisma
+npx prisma init
+
+# Create schema in prisma/schema.prisma
+# Then run migration
+npx prisma migrate dev --name init
+
+# Generate Prisma Client
+npx prisma generate
+
+# View database in Prisma Studio (optional)
+npx prisma studio
+```
+
+#### PostgreSQL Database Creation
+```bash
+# Using psql command line
+psql -U postgres
+CREATE DATABASE cheil_db;
+\q
+
+# Or using connection string in .env
+# DATABASE_URL="postgresql://postgres:password@localhost:5432/cheil_db"
+```
+
+---
+
+## Notes
+- Prioritize user experience and security
+- Keep code modular and reusable
+- Follow RESTful API conventions
+- Maintain consistency across codebase
+- Document any deviations from these rules
+- Update this document as project evolves
+
+---
+
+**Last Updated**: October 29, 2025
+**Version**: 1.1.0 (PostgreSQL + Prisma Specific)
+**Database**: PostgreSQL with Prisma ORM
