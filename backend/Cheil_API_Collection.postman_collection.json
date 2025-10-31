@@ -1,0 +1,392 @@
+{
+	"info": {
+		"_postman_id": "cheil-submission-api",
+		"name": "Cheil Submission API",
+		"description": "API collection untuk Cheil Submission Form dengan image upload",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "cheil-api"
+	},
+	"item": [
+		{
+			"name": "Submissions",
+			"item": [
+				{
+					"name": "Create Submission",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Response has success field\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('success');",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"});",
+									"",
+									"pm.test(\"Response contains data with id\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.have.property('id');",
+									"    pm.expect(jsonData.data).to.have.property('name');",
+									"    pm.expect(jsonData.data).to.have.property('email');",
+									"    pm.expect(jsonData.data).to.have.property('phone');",
+									"    pm.expect(jsonData.data).to.have.property('imageUrl');",
+									"});",
+									"",
+									"// Save submission ID for other requests",
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set('submission_id', jsonData.data.id);",
+									"    pm.environment.set('submission_email', jsonData.data.email);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "name",
+									"value": "John Doe",
+									"type": "text",
+									"description": "Nama lengkap (2-100 karakter)"
+								},
+								{
+									"key": "email",
+									"value": "john.doe@example.com",
+									"type": "text",
+									"description": "Email yang valid (unique)"
+								},
+								{
+									"key": "phone",
+									"value": "+6281234567890",
+									"type": "text",
+									"description": "Nomor telepon (10-15 digit)"
+								},
+								{
+									"key": "image",
+									"type": "file",
+									"src": [],
+									"description": "File gambar (JPG, PNG, WEBP, max 5MB)"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/submissions",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"submissions"
+							]
+						},
+						"description": "Membuat submission baru dengan mengupload form data dan gambar.\n\n**Request Body (multipart/form-data):**\n- `name` (string, required): Nama lengkap, 2-100 karakter\n- `email` (string, required): Email yang valid, harus unique\n- `phone` (string, required): Nomor telepon, 10-15 digit\n- `image` (file, required): File gambar (JPG, PNG, WEBP), maksimal 5MB\n\n**Response 201:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Submission berhasil dibuat\",\n  \"data\": {\n    \"id\": \"uuid\",\n    \"name\": \"John Doe\",\n    \"email\": \"john.doe@example.com\",\n    \"phone\": \"+6281234567890\",\n    \"imagePath\": \"image-1234567890-123456789_processed.jpg\",\n    \"imageUrl\": \"/uploads/image-1234567890-123456789_processed.jpg\",\n    \"createdAt\": \"2025-10-29T12:00:00.000Z\",\n    \"updatedAt\": \"2025-10-29T12:00:00.000Z\"\n  }\n}\n```\n\n**Response 400 (Validation Error):**\n```json\n{\n  \"success\": false,\n  \"message\": \"Validasi gagal\",\n  \"errors\": [\n    {\n      \"field\": \"name\",\n      \"message\": \"Nama harus diisi\"\n    }\n  ]\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Submission - Validation Error (Empty Name)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Response indicates validation failure\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.false;",
+									"    pm.expect(jsonData).to.have.property('errors');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "name",
+									"value": "",
+									"type": "text"
+								},
+								{
+									"key": "email",
+									"value": "invalid-email",
+									"type": "text"
+								},
+								{
+									"key": "phone",
+									"value": "123",
+									"type": "text"
+								},
+								{
+									"key": "image",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/submissions",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"submissions"
+							]
+						},
+						"description": "Contoh request yang akan menghasilkan validation error untuk testing error handling."
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Submissions",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has success field\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('success');",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"});",
+									"",
+									"pm.test(\"Response contains data array\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.be.an('array');",
+									"});",
+									"",
+									"pm.test(\"Response contains pagination info\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('pagination');",
+									"    pm.expect(jsonData.pagination).to.have.property('currentPage');",
+									"    pm.expect(jsonData.pagination).to.have.property('totalPages');",
+									"    pm.expect(jsonData.pagination).to.have.property('totalItems');",
+									"    pm.expect(jsonData.pagination).to.have.property('itemsPerPage');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/submissions?page=1&limit=10",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"submissions"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Halaman yang diminta (default: 1)"
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Jumlah item per halaman (default: 10)"
+								}
+							]
+						},
+						"description": "Mengambil semua submission dengan pagination.\n\n**Query Parameters:**\n- `page` (optional): Nomor halaman (default: 1)\n- `limit` (optional): Jumlah item per halaman (default: 10)\n\n**Response 200:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Data submissions berhasil diambil\",\n  \"data\": [\n    {\n      \"id\": \"uuid\",\n      \"name\": \"John Doe\",\n      \"email\": \"john.doe@example.com\",\n      \"phone\": \"+6281234567890\",\n      \"imagePath\": \"image-1234567890-123456789_processed.jpg\",\n      \"imageUrl\": \"/uploads/image-1234567890-123456789_processed.jpg\",\n      \"createdAt\": \"2025-10-29T12:00:00.000Z\",\n      \"updatedAt\": \"2025-10-29T12:00:00.000Z\"\n    }\n  ],\n  \"pagination\": {\n    \"currentPage\": 1,\n    \"totalPages\": 5,\n    \"totalItems\": 50,\n    \"itemsPerPage\": 10\n  }\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Submission By ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has success field\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('success');",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"});",
+									"",
+									"pm.test(\"Response contains submission data\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.have.property('id');",
+									"    pm.expect(jsonData.data).to.have.property('name');",
+									"    pm.expect(jsonData.data).to.have.property('email');",
+									"    pm.expect(jsonData.data).to.have.property('phone');",
+									"    pm.expect(jsonData.data).to.have.property('imageUrl');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/submissions/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"submissions",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "{{submission_id}}",
+									"description": "ID submission (UUID/CUID)"
+								}
+							]
+						},
+						"description": "Mengambil submission berdasarkan ID.\n\n**Path Parameters:**\n- `id` (required): ID submission (UUID/CUID)\n\n**Response 200:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Submission berhasil diambil\",\n  \"data\": {\n    \"id\": \"uuid\",\n    \"name\": \"John Doe\",\n    \"email\": \"john.doe@example.com\",\n    \"phone\": \"+6281234567890\",\n    \"imagePath\": \"image-1234567890-123456789_processed.jpg\",\n    \"imageUrl\": \"/uploads/image-1234567890-123456789_processed.jpg\",\n    \"createdAt\": \"2025-10-29T12:00:00.000Z\",\n    \"updatedAt\": \"2025-10-29T12:00:00.000Z\"\n  }\n}\n```\n\n**Response 404:**\n```json\n{\n  \"success\": false,\n  \"message\": \"Submission tidak ditemukan\"\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Submission By ID - Not Found",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test(\"Response indicates not found\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.false;",
+									"    pm.expect(jsonData.message).to.include('tidak ditemukan');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/submissions/invalid-id-12345",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"submissions",
+								"invalid-id-12345"
+							]
+						},
+						"description": "Contoh request dengan ID yang tidak valid untuk testing error handling."
+					},
+					"response": []
+				}
+			],
+			"description": "Collection untuk endpoints submission API"
+		},
+		{
+			"name": "Health Check",
+			"item": [
+				{
+					"name": "API Health Check",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"API is running\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('message');",
+									"    pm.expect(jsonData.message).to.include('running');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "Endpoint untuk mengecek status API apakah sedang berjalan.\n\n**Response 200:**\n```json\n{\n  \"message\": \"Cheil Backend API is running\",\n  \"timestamp\": \"2025-10-29T12:00:00.000Z\"\n}\n```"
+					},
+					"response": []
+				}
+			],
+			"description": "Health check endpoint"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:5000",
+			"type": "string"
+		}
+	]
+}
+
